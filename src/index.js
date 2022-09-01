@@ -8,6 +8,7 @@ dotenv.config()
 const app = express();
 app.use(cors());
 app.use(express.json());
+
 const mongoClient = new MongoClient(process.env.MONGO_URI)
 let db
 mongoClient.connect().then(() => {
@@ -15,15 +16,23 @@ mongoClient.connect().then(() => {
 });
 
 
-app.post("/participants", (req, res) => {
+app.post("/participants", async (req, res) => {
     const { name } = req.body
 
-    if(!name) {
-        res.sendStatus(422)
-        return;
-    }
+    try {
+        if(!name) {
+            res.sendStatus(422)
+            return;
+        }
+    
+        db.collection("user").insertOne({ name, lastStatus: Date.now() })
+        db.collection("messages").insertOne({ from: name, to: "Todos", text: "entra na sala...", type: "status", time: "HH:MM:SS" })
+        res.sendStatus(201)
 
-    res.sendStatus(201)
+    } catch {
+        res.sendStatus(422)
+    }
+    
 })
 
 app.get("/participants", (req, res) => {
