@@ -48,8 +48,8 @@ app.get("/participants", async (req, res) => {
 
 app.post("/messages", (req, res) => {
   const { to, text, type } = req.body;
-  const  from  = req.headers.user;
-  console.log(from)
+  const from = req.headers.user;
+
   try {
     db.collection("messages").insertOne({
       to,
@@ -59,6 +59,33 @@ app.post("/messages", (req, res) => {
       time: "HH:MM:SS",
     });
     res.sendStatus(201);
+  } catch {
+    res.sendStatus(422);
+  }
+});
+
+app.get("/messages", async (req, res) => {
+  const { limit } = req.query;
+  const user = req.headers.user;
+  console.log(limit);
+
+  try {
+    const messagesList = await db.collection("messages").find().toArray();
+    if (limit <= 0) {
+      res.send(messagesList.map((v) => ({ ...v, _id: undefined })));
+    }
+    const filteredMessages = messagesList
+      .filter((msg) => {
+        if (
+          msg.type === "message" ||
+          msg.type === "status" ||
+          (msg.type === "private_message" && (msg.from === user || msg.to === user))
+        ) {
+          return msg;
+        }
+      })
+      .slice(-limit);
+    res.send(filteredMessages.map((v) => ({ ...v, _id: undefined })));
   } catch {
     res.sendStatus(422);
   }
