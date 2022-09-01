@@ -40,14 +40,28 @@ app.post("/participants", async (req, res) => {
 app.get("/participants", async (req, res) => {
   try {
     const participants = await db.collection("user").find().toArray();
-    res.send(participants.map(v => ({...v, _id: undefined})));
+    res.send(participants.map((v) => ({ ...v, _id: undefined })));
   } catch {
     res.sendStatus(422);
   }
 });
 
 app.post("/messages", (req, res) => {
-  res.sendStatus(201);
+  const { to, text, type } = req.body;
+  const  from  = req.headers.user;
+  console.log(from)
+  try {
+    db.collection("messages").insertOne({
+      to,
+      text,
+      type,
+      from,
+      time: "HH:MM:SS",
+    });
+    res.sendStatus(201);
+  } catch {
+    res.sendStatus(422);
+  }
 });
 
-app.listen(5000, () => console.log("Listening on 5000"));
+app.listen(5000, () => console.log("Listening on port 5000"));
