@@ -1,5 +1,7 @@
 import express from "express";
+import dayjs from "dayjs";
 import cors from "cors";
+import joi from "joi";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 dotenv.config();
@@ -14,25 +16,43 @@ mongoClient.connect().then(() => {
   db = mongoClient.db("batepapouol");
 });
 
+const userSchema = joi.object({
+  name: joi.string().required(),
+});
+
+const messagesSchema = joi.object({
+  to: joi.string().required(),
+  text: joi.string().required(),
+  type: joi.string().valid("message", "private_message").required(),
+});
+
 app.post("/participants", async (req, res) => {
   const { name } = req.body;
+  const validation = userSchema.validate(req.body, { abortEarly: false });
+  const participants = await db.collection("user").find().toArray();
+  const isUserExists = participants.find((v) => v.name === name);
+
+  if (validation.error) {
+    res.sendStatus(422);
+    return;
+  }
+
+  if (isUserExists) {
+    res.sendStatus(409);
+    return;
+  }
 
   try {
-    if (!name) {
-      res.sendStatus(422);
-      return;
-    }
-
     db.collection("user").insertOne({ name, lastStatus: Date.now() });
     db.collection("messages").insertOne({
       from: name,
       to: "Todos",
       text: "entra na sala...",
       type: "status",
-      time: "HH:MM:SS",
+      time: dayjs().format("HH:mm:ss") 
     });
     res.sendStatus(201);
-  } catch {
+  } catch (error) {
     res.sendStatus(422);
   }
 });
@@ -40,26 +60,36 @@ app.post("/participants", async (req, res) => {
 app.get("/participants", async (req, res) => {
   try {
     const participants = await db.collection("user").find().toArray();
-    res.send(participants.map((v) => ({ ...v, _id: undefined })));
-  } catch {
+    res.send(participants);
+  } catch (error) {
     res.sendStatus(422);
   }
 });
 
-app.post("/messages", (req, res) => {
+app.post("/messages", async (req, res) => {
   const { to, text, type } = req.body;
   const from = req.headers.user;
+  const validation = messagesSchema.validate(req.body, { abortEarly: false });
+  const participants = await db.collection("user").find().toArray();
+  const isUserExists = participants.find((v) => v.name === to);
+  if (validation.error) {
+    res.sendStatus(422);
+  }
 
+  if (!isUserExists) {
+    res.sendStatus(422);
+    return;
+  }
   try {
     db.collection("messages").insertOne({
       to,
       text,
       type,
       from,
-      time: "HH:MM:SS",
+      time: dayjs().format("HH:mm:ss")
     });
     res.sendStatus(201);
-  } catch {
+  } catch (error) {
     res.sendStatus(422);
   }
 });
@@ -72,7 +102,7 @@ app.get("/messages", async (req, res) => {
   try {
     const messagesList = await db.collection("messages").find().toArray();
     if (limit <= 0) {
-      res.send(messagesList.map((v) => ({ ...v, _id: undefined })));
+      res.send(messagesList);
     }
     const filteredMessages = messagesList
       .filter((msg) => {
@@ -85,10 +115,24 @@ app.get("/messages", async (req, res) => {
         }
       })
       .slice(-limit);
-    res.send(filteredMessages.map((v) => ({ ...v, _id: undefined })));
-  } catch {
+    res.send(filteredMessages);
+  } catch (error) {
     res.sendStatus(422);
   }
+});
+
+app.post("/status", (req, res) => {
+  const user = req.headers.user;
+  const participants = db.collection("user").find().toArray();
+
+  const isUserExists = participants.find((v) => v.name === user);
+
+  if (!isUserExists) {
+    res.sendStatus(409);
+    return;
+  }
+  //falta atualizar com datenow
+  res.sendStatus(200);
 });
 
 app.listen(5000, () => console.log("Listening on port 5000"));
