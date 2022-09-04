@@ -17,12 +17,12 @@ mongoClient.connect().then(() => {
 });
 
 const userSchema = joi.object({
-  name: joi.string().required(),
+  name: joi.string().trim().required(),
 });
 
 const messagesSchema = joi.object({
-  to: joi.string().required(),
-  text: joi.string().required(),
+  to: joi.string().trim().required(),
+  text: joi.string().trim().required(),
   type: joi.string().valid("message", "private_message").required(),
 });
 
@@ -96,6 +96,7 @@ app.post("/messages", async (req, res) => {
   const isUserExists = participants.find((v) => v.name === to);
   if (validation.error) {
     res.sendStatus(422);
+    return;
   }
 
   if (!isUserExists) {
