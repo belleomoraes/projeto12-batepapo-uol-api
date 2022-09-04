@@ -26,18 +26,28 @@ const messagesSchema = joi.object({
   type: joi.string().valid("message", "private_message").required(),
 });
 
-// async function removeInactiveUsers() {
-//   const participants = await db.collection("user").find().toArray();
-//   const inactiveUsers = participants.filter((inactive) => {
-//     if (Number(Datenow()) - Number(inactive.lastStatus) >= 10) {
-//       return inactive.idObjectId;
-//     }
-//     db.collection("user").deleteMany({ inactiveUsers });
-//     console.log("removendo")
-//   });
-// }
+async function removeInactiveUsers() {
+  const participants = await db.collection("user").find().toArray();
+  await participants
+    .filter((inactive) => Date.now() - Number(inactive.lastStatus) > 10000)
+    .map(async (inactive) => {
+      try {
+        const inactiveMessage = {
+          from: inactive.name,
+          to: "Todos",
+          text: "sai da sala...",
+          type: "status",
+          time: dayjs().format("HH:mm:ss"),
+        };
+        db.collection("user").deleteOne(inactive);
+        db.collection("messages").insertOne(inactiveMessage);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+}
 
-// setInterval(removeInactiveUsers, 15000);
+setInterval(removeInactiveUsers, 15000);
 app.post("/participants", async (req, res) => {
   const { name } = req.body;
   const validation = userSchema.validate(req.body, { abortEarly: false });
@@ -144,11 +154,8 @@ app.post("/status", async (req, res) => {
   }
   const idUser = isUserExists._id;
   try {
-    await db
-      .collection("user")
-      .updateOne({ _id: idUser }, { $set: { lastStatus: Date.now() } });
-      res.sendStatus(200);
-    
+    await db.collection("user").updateOne({ _id: idUser }, { $set: { lastStatus: Date.now() } });
+    res.sendStatus(200);
   } catch (error) {
     res.sendStatus(500);
   }
