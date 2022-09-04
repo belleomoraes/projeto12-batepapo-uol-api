@@ -2,7 +2,7 @@ import express from "express";
 import dayjs from "dayjs";
 import cors from "cors";
 import joi from "joi";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -26,6 +26,18 @@ const messagesSchema = joi.object({
   type: joi.string().valid("message", "private_message").required(),
 });
 
+// async function removeInactiveUsers() {
+//   const participants = await db.collection("user").find().toArray();
+//   const inactiveUsers = participants.filter((inactive) => {
+//     if (Number(Datenow()) - Number(inactive.lastStatus) >= 10) {
+//       return inactive.idObjectId;
+//     }
+//     db.collection("user").deleteMany({ inactiveUsers });
+//     console.log("removendo")
+//   });
+// }
+
+// setInterval(removeInactiveUsers, 15000);
 app.post("/participants", async (req, res) => {
   const { name } = req.body;
   const validation = userSchema.validate(req.body, { abortEarly: false });
@@ -49,11 +61,11 @@ app.post("/participants", async (req, res) => {
       to: "Todos",
       text: "entra na sala...",
       type: "status",
-      time: dayjs().format("HH:mm:ss") 
+      time: dayjs().format("HH:mm:ss"),
     });
     res.sendStatus(201);
   } catch (error) {
-    res.sendStatus(422);
+    res.sendStatus(500);
   }
 });
 
@@ -86,11 +98,11 @@ app.post("/messages", async (req, res) => {
       text,
       type,
       from,
-      time: dayjs().format("HH:mm:ss")
+      time: dayjs().format("HH:mm:ss"),
     });
     res.sendStatus(201);
   } catch (error) {
-    res.sendStatus(422);
+    res.sendStatus(500);
   }
 });
 
@@ -117,22 +129,29 @@ app.get("/messages", async (req, res) => {
       .slice(-limit);
     res.send(filteredMessages);
   } catch (error) {
-    res.sendStatus(422);
+    res.sendStatus(500);
   }
 });
 
-app.post("/status", (req, res) => {
+app.post("/status", async (req, res) => {
   const user = req.headers.user;
-  const participants = db.collection("user").find().toArray();
+  const participants = await db.collection("user").find().toArray();
 
   const isUserExists = participants.find((v) => v.name === user);
-
   if (!isUserExists) {
-    res.sendStatus(409);
+    res.sendStatus(404);
     return;
   }
-  //falta atualizar com datenow
-  res.sendStatus(200);
+  const idUser = isUserExists._id;
+  try {
+    await db
+      .collection("user")
+      .updateOne({ _id: idUser }, { $set: { lastStatus: Date.now() } });
+      res.sendStatus(200);
+    
+  } catch (error) {
+    res.sendStatus(500);
+  }
 });
 
 app.listen(5000, () => console.log("Listening on port 5000"));
