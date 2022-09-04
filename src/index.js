@@ -26,28 +26,6 @@ const messagesSchema = joi.object({
   type: joi.string().valid("message", "private_message").required(),
 });
 
-async function removeInactiveUsers() {
-  const participants = await db.collection("user").find().toArray();
-  await participants
-    .filter((inactive) => Date.now() - Number(inactive.lastStatus) > 10000)
-    .map(async (inactive) => {
-      try {
-        const inactiveMessage = {
-          from: inactive.name,
-          to: "Todos",
-          text: "sai da sala...",
-          type: "status",
-          time: dayjs().format("HH:mm:ss"),
-        };
-        db.collection("user").deleteOne(inactive);
-        db.collection("messages").insertOne(inactiveMessage);
-      } catch (error) {
-        console.log(error);
-      }
-    });
-}
-
-setInterval(removeInactiveUsers, 15000);
 app.post("/participants", async (req, res) => {
   const { name } = req.body;
   const validation = userSchema.validate(req.body, { abortEarly: false });
@@ -84,7 +62,7 @@ app.get("/participants", async (req, res) => {
     const participants = await db.collection("user").find().toArray();
     res.send(participants);
   } catch (error) {
-    res.sendStatus(422);
+    res.sendStatus(500);
   }
 });
 
@@ -161,5 +139,52 @@ app.post("/status", async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+app.delete("/messages/id", async (req, res) => {
+  const { id } = req.params;
+  const user = req.headers.user;
+  const messages = await db.collection("messages").find().toArray();
+  const isMessageExists = messages.find((v) => v._id === ObjectId(id));
+
+  if (!isMessageExists) {
+    res.sendStatus(404);
+    return;
+  }
+
+  if (isMessageExists.from !== user) {
+    res.sendStatus(401);
+    return;
+  }
+
+  try {
+    await db.collection("messages").deleteOne({ _id: ObjectId(id) });
+    res.sendStatus(200)
+  } catch (error) {
+    res.sendStatus(500);
+  }
+});
+
+async function removeInactiveUsers() {
+  const participants = await db.collection("user").find().toArray();
+  await participants
+    .filter((inactive) => Date.now() - Number(inactive.lastStatus) > 10000)
+    .map(async (inactive) => {
+      try {
+        const inactiveMessage = {
+          from: inactive.name,
+          to: "Todos",
+          text: "sai da sala...",
+          type: "status",
+          time: dayjs().format("HH:mm:ss"),
+        };
+        db.collection("user").deleteOne(inactive);
+        db.collection("messages").insertOne(inactiveMessage);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+}
+
+//setInterval(removeInactiveUsers, 15000);
 
 app.listen(5000, () => console.log("Listening on port 5000"));
