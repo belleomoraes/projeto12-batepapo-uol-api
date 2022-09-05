@@ -5,11 +5,19 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npx nodemon src/index.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/belleomoraes/projeto12-batepapo-uol-api.git"
+  },
+  "keywords": [],
   "author": "",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/belleomoraes/projeto12-batepapo-uol-api/issues"
+  },
+  "homepage": "https://github.com/belleomoraes/projeto12-batepapo-uol-api#readme",
   "dependencies": {
     "cors": "^2.8.5",
     "dayjs": "^1.11.5",

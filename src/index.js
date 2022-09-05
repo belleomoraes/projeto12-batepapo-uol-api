@@ -1,11 +1,10 @@
-import express from "express";
+import express from 'express';
 import dayjs from "dayjs";
 import cors from "cors";
 import joi from "joi";
 import { MongoClient, ObjectId } from "mongodb";
 import dotenv from "dotenv";
 dotenv.config();
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -71,7 +70,9 @@ app.post("/messages", async (req, res) => {
   const from = req.headers.user;
   const validation = messagesSchema.validate(req.body, { abortEarly: false });
   const participants = await db.collection("user").find().toArray();
+  console.log(participants)
   const isUserExists = participants.find((v) => v.name === to);
+  console.log(isUserExists)
   if (validation.error) {
     res.sendStatus(422);
     return;
@@ -140,18 +141,17 @@ app.post("/status", async (req, res) => {
   }
 });
 
-app.delete("/messages/id", async (req, res) => {
+app.delete("/messages/:id", async (req, res) => {
   const { id } = req.params;
   const user = req.headers.user;
-  const messages = await db.collection("messages").find().toArray();
-  const isMessageExists = messages.find((v) => v._id === ObjectId(id));
-
-  if (!isMessageExists) {
+  const messagesFind = await db.collection("messages").findOne({_id:ObjectId(id)});
+  
+  if (!messagesFind) {
     res.sendStatus(404);
     return;
   }
 
-  if (isMessageExists.from !== user) {
+  if (messagesFind.from !== user) {
     res.sendStatus(401);
     return;
   }
@@ -164,33 +164,32 @@ app.delete("/messages/id", async (req, res) => {
   }
 });
 
-app.put("/messages/id", async (req, res) => {
+app.put("/messages/:id", async (req, res) => {
 const {to, text, type} = req.body
-const { from } = req.headers.user
+const from  = req.headers.user
 const {id} = req.params
-
+console.log(from)
 const validation = messagesSchema.validate(req.body, { abortEarly: false });
-  const participants = await db.collection("user").find().toArray();
-  const isUserExists = participants.find((v) => v.name === to);
+const userFind = await db.collection("user").findOne({name: from});
+  
   if (validation.error) {
     res.sendStatus(422);
     return;
   }
 
-  if (!isUserExists) {
+  if (!userFind) {
     res.sendStatus(404);
     return;
   }
 
-  const messages = await db.collection("messages").find().toArray();
-  const isMessageExists = messages.find((v) => v._id === ObjectId(id));
+  const messagesFind = await db.collection("messages").findOne({_id:ObjectId(id)});
 
-  if (!isMessageExists) {
+  if (!messagesFind) {
     res.sendStatus(404);
     return;
   }
 
-  if (isMessageExists.from !== from) {
+  if (messagesFind.from !== from) {
     res.sendStatus(401);
     return;
   }
