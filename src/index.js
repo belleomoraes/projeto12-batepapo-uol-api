@@ -164,6 +164,44 @@ app.delete("/messages/id", async (req, res) => {
   }
 });
 
+app.put("/messages/id", async (req, res) => {
+const {to, text, type} = req.body
+const { from } = req.headers.user
+const {id} = req.params
+
+const validation = messagesSchema.validate(req.body, { abortEarly: false });
+  const participants = await db.collection("user").find().toArray();
+  const isUserExists = participants.find((v) => v.name === to);
+  if (validation.error) {
+    res.sendStatus(422);
+    return;
+  }
+
+  if (!isUserExists) {
+    res.sendStatus(404);
+    return;
+  }
+
+  const messages = await db.collection("messages").find().toArray();
+  const isMessageExists = messages.find((v) => v._id === ObjectId(id));
+
+  if (!isMessageExists) {
+    res.sendStatus(404);
+    return;
+  }
+
+  if (isMessageExists.from !== from) {
+    res.sendStatus(401);
+    return;
+  }
+
+  try {
+    await db.collection("messages").updateOne({ _id: ObjectId(id) }, { $set: req.body });
+    res.sendStatus(200);
+  } catch (error) {
+    res.sendStatus(500)
+  }
+})
 async function removeInactiveUsers() {
   const participants = await db.collection("user").find().toArray();
   await participants
@@ -185,6 +223,6 @@ async function removeInactiveUsers() {
     });
 }
 
-//setInterval(removeInactiveUsers, 15000);
+setInterval(removeInactiveUsers, 15000);
 
 app.listen(5000, () => console.log("Listening on port 5000"));
